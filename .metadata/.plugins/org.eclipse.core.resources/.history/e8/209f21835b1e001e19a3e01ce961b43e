@@ -1,0 +1,97 @@
+package com.board.dao;
+
+import com.board.VO.BoardVO;
+import com.board.dao.BoardDao;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.mybatis.spring.support.SqlSessionDaoSupport;
+import org.springframework.stereotype.Component;
+
+@Component
+public class BoardDaoImpl extends SqlSessionDaoSupport implements BoardDao {
+
+	public List<BoardVO> list(Map<String, Object> map) {
+		List<BoardVO> list = getSqlSession().selectList("boardList", map);
+		return list;
+	}
+
+	public int getCount(Map<String, Object> map) {
+		return ((Integer) getSqlSession().selectOne("boardCount", map))
+				.intValue();
+	}
+
+	@Override
+	public void insertBoard(BoardVO boardVO, int groupId) {
+	    boardVO.setGroup_id(groupId);
+	    getSqlSession().insert("insertBoard", boardVO);
+	}
+
+	public BoardVO getBoard(int seq) {
+		return getSqlSession().selectOne("getBoard", seq);
+	}
+
+	public void updateHit(int seq) {
+		getSqlSession().update("updateHit", seq);
+	}
+
+	public int checkPassword(Map<String, Object> data) {
+		return getSqlSession().selectOne("checkPassword", data);
+	}
+
+	public void updateBoard(BoardVO board) {
+		getSqlSession().update("updateBoard", board);
+	}
+
+	public void deleteBoard(int seq) {
+		try {
+			getSqlSession().delete("deleteBoard", seq);
+		} catch (Exception e) {
+			logger.error("deleteBoard 메소드 에러: " + seq, e);
+		}
+	}
+
+	public void updateFileName(int seq) {
+		getSqlSession().update("updateFileName", seq);
+	}
+
+	public void insertReply(BoardVO boardVO) {
+		getSqlSession().insert("insertReply", boardVO);
+	}
+	
+	public void updateOrderNo(int group_id, int order_no) {
+	    Map<String, Object> paramMap = new HashMap<>();
+	    paramMap.put("group_id", group_id);
+	    paramMap.put("order_no", order_no);
+	    getSqlSession().update("updateOrderNoForReply", paramMap);
+	}
+	
+	@Override
+	public void updateBoardGroupId(BoardVO boardVO) {
+		getSqlSession().update("updateBoardGroupId", boardVO);
+	}
+	
+	 @Override
+	 public int getGeneratedGroupId() {
+	    return getSqlSession().selectOne("getGeneratedGroupSeq");
+	 }
+
+	
+	@Override
+	public void updateOrderNoForReply(BoardVO boardVO) throws Exception {
+	    Map<String, Object> paramMap = new HashMap<>();
+	    paramMap.put("group_id", boardVO.getGroup_id());
+	    paramMap.put("order_no", boardVO.getOrder_no());
+	    getSqlSession().update("updateOrderNoForReply", paramMap);
+	}
+	
+	@Override
+	public BoardVO getNextBoard(int group_Id, int depth) {
+	  Map<String, Object> paramMap = new HashMap<>();
+	  paramMap.put("group_id", group_id);
+	  paramMap.put("depth", depth);
+	  return getSqlSession().selectOne("getNextBoard", paramMap);
+	}
+}

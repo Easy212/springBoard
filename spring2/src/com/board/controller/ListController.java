@@ -1,0 +1,157 @@
+package com.board.controller;
+
+import com.board.VO.BoardVO;
+import com.board.dao.BoardDao;
+import com.board.paging.Paging;
+
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.UnsupportedEncodingException;
+import java.net.URLDecoder;
+import java.net.URLEncoder;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
+import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Controller;
+import org.springframework.util.FileCopyUtils;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.ModelAndView;
+
+@Controller
+public class ListController {
+	@SuppressWarnings("unused")
+	private Logger log = Logger.getLogger(getClass());
+	private int pageSize = 10; // 페이지당 표시되는 게시물 수
+	private int blockCount = 10; // 페이지 블록 수
+
+	@Autowired
+	private BoardDao boardDao;  // 데이터베이스 접근을 위한 DAO 객체
+
+	// 게시물 조회 메서드
+	// 특정 게시물을 조회하고 조회수를 증가시킨 후, 상세 화면으로 이동
+	@RequestMapping({ "/board/list.do" }) // 사용자의 요청 URL
+	public ModelAndView process(
+	        @RequestParam(value = "pageNum", defaultValue = "1") int currentPage, // 페이징
+	        @RequestParam(value = "keyField", defaultValue = "") String keyField,
+	        @RequestParam(value = "keyWord", defaultValue = "") String keyWord) { // 검색 키워드
+
+	    String pagingHtml = ""; // 페이징을 위한 HTML 코드를 초기화
+	    @SuppressWarnings({ "unchecked", "rawtypes" })
+	    HashMap<String, Object> map = new HashMap(); // 검색 조건을 담을 맵 객체를 생성
+	    map.put("keyField", keyField); // 맵에 keyField를 키로하여 검색 조건의 필드 값을 저장
+	    map.put("keyWord", keyWord); // 맵에 keyWord를 키로하여 검색 조건의 키워드 값을 저장
+
+		int count = this.boardDao.getCount(map); // // 전체 글의 갯수를 데이터베이스를 통해 조회
+
+		Paging page = new Paging(keyField, keyWord, currentPage, count,
+				this.pageSize, this.blockCount, "list.do");
+		
+		// 생성된 페이징 HTML 코드를 문자열로 변환하여 저장
+		pagingHtml = page.getPagingHtml().toString();
+
+		// 맵에 start를 키로하여 페이징 시작 위치를 저장
+		map.put("start", Integer.valueOf(page.getStartCount()));
+		
+		// 맵에 end를 키로하여 페이징 종료 위치를 저장
+		map.put("end", Integer.valueOf(page.getEndCount()));
+
+		List<BoardVO> list = null; // 게시물 목록을 담을 리스트 객체를 초기화
+		if(count > 0) { // 전체 글이 존재하는 경우, 데이터베이스를 통해 게시물 목록을 조회
+		    list = this.boardDao.list(map);
+		}else{ // 전체 글이 없는 경우, 빈 리스트로 초기화
+		    list = Collections.emptyList();
+		}
+
+		// 각 게시물에 부여될 일련번호를 계산
+		int number = count - (currentPage - 1) * this.pageSize;
+
+		ModelAndView mav = new ModelAndView();// 뷰와 전달할 데이터를 담을 ModelAndView 객체를 생성
+		mav.setViewName("boardList"); // 뷰로 보여질 명
+		mav.addObject("count", Integer.valueOf(count)); // 전체글 갯수를 모델에 추가
+		mav.addObject("currentPage", Integer.valueOf(currentPage)); // 현재 페이지 번호를 모델에 추가
+		mav.addObject("list", list); // 게시물 목록을 모델에 추가
+		mav.addObject("pagingHtml", pagingHtml); // 페이징 HTML을 모델에 추가
+		mav.addObject("number", Integer.valueOf(number)); // 게시물 번호를 모델에 추가
+
+		return mav;
+	}
+
+	// 게시물 상세 화면으로 이동하는 메서드
+	@RequestMapping(value = "/board/detail.do", method = RequestMethod.POST)
+	public ModelAndView detail(@RequestParam(value = "seq") int seq) {
+		
+	    boardDao.updateHit(seq); // 조회수 증가
+	    BoardVO board = boardDao.getBoard(seq); // 게시물 조회
+	    ModelAndView mav = new ModelAndView();
+	    mav.setViewName("detail"); // 상세보기 뷰 이름 지정
+
+	    String fileName = board.getUploadedFile(); // 업로드된 파일명 저장
+	    String filePath = "/upload/" + fileName; // 상대 경로 생성
+	    mav.addObject("uploadedFileName", fileName); // 업로드된 파일명 추가
+	    mav.addObject("originalFilename", board.getOriginalFilename()); // 원본 파일명 추가
+	    mav.addObject("uploadedFilePath", filePath); // 업로드된 파일의 경로 추가
+	    mav.addObject("board", board); // 조회된 게시물 정보를 뷰에 전달
+	    System.out.println("ListController - detail: board = " + board.toString());
+	    return mav;
+	}
+	
+	// 파일 다운로드 메서드
+	@RequestMapping(value = "/board/download.do", method = RequestMethod.POST)
+	public void download(@RequestParam("fileName") String fileName,
+	                     @RequestParam("originalFilename") String originalFilename,
+	                     HttpServletRequest request, HttpServletResponse response) throws IOException {
+
+	    // 파일명이 한글일 경우 인코딩
+	    //fileName = new String(fileName.getBytes("8859_1"), "UTF-8");
+	    //originalFilename = new String(originalFilename.getBytes("8859_1"), "UTF-8");
+	    
+	    // 실제 파일 경로(현재 프로젝트의 실제 경로)
+	    String projectRealPath = request.getSession().getServletContext().getRealPath("/");
+	    
+	    // 파일이 업로드되는 디렉토리명을 지정
+	    String uploadDirPath = "upload";
+	    
+	    // 실제 파일의 경로를 생성
+	    String filePath = projectRealPath + uploadDirPath + File.separator + fileName;
+	    System.out.println(request.getSession().getServletContext().getRealPath("/"));
+	    
+	    // 파일 존재 여부 확인
+	    File file = new File(filePath); //File 객체를 사용하여 파일이 존재하는지 확인
+	    if (!file.exists()) { //파일이 없으면
+	        throw new FileNotFoundException("File not found: " + filePath);
+	    }
+
+	    // 파일이 존재하면, 파일 다운로드를 위해 InputStream과 OutputStream을 생성
+	    try (InputStream is = new FileInputStream(file);
+	         OutputStream os = response.getOutputStream()) {
+	    	
+	    	// 파일의 MIME 유형 설정
+	        String mimeType = request.getServletContext().getMimeType(file.getAbsolutePath());
+	        response.setContentType(mimeType != null ? mimeType : "application/octet-stream");
+	        
+	        // 다운로드할 파일의 크기 설정
+	        response.setContentLength((int) file.length());
+	        
+	        // 다운로드할 파일의 이름 설정 (한글 파일명을 위해 UTF-8 인코딩
+	        response.setHeader("Content-Disposition", "attachment;filename*=UTF-8''" + URLEncoder.encode(originalFilename, "UTF-8").replaceAll("\\+", "%20") + "");
+	        
+	        // 파일을 복사하고 다운로드
+	        FileCopyUtils.copy(is, os);
+	        
+	        //출력 스트림을 비움
+	        os.flush();
+	    }
+	}
+}

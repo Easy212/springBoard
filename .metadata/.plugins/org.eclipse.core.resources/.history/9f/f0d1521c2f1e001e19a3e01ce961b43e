@@ -1,0 +1,92 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+	pageEncoding="UTF-8"%>
+<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>글쓰기</title>
+<script>
+	// 첫부분 공백 제거
+	function removeWhiteSpaces(input) {
+	  	const validValue = input.value.replace(/^\s+/, '');
+	    if (input.value !== validValue) {
+	      input.value = validValue;
+	    }
+	}
+	 
+	// 복붙했을경우 시작과 끝공백 제거
+	function handlePasteEvent(event) {
+	    // 텍스트를 가져오는 방법은 브라우저에 따라 다르다
+	    let pastedText = event.clipboardData
+	      ? event.clipboardData.getData('text')
+	      : window.clipboardData.getData('Text');
+	
+	    // 시작과 끝에 있는 공백 제거
+	    pastedText = pastedText.trim();
+	
+	    // 강제로 input의 value를 승인된 텍스트로 변경한다
+	    setTimeout(() => {
+	      event.target.value = pastedText;
+	    }, 0);
+	  }
+	//저장될 때 끝 부분의 공백을 제거
+	function trimEndOnSubmit(form) {
+	    form.title.value = form.title.value.replace(/\s+$/, '');
+	    form.name.value = form.name.value.replace(/\s+$/, '');
+	    form.content.value = form.content.value.replace(/\s+$/, '');
+	    return true;
+	}
+	
+   function validateInputMaxLength(input, maxLength) {
+        if (input.value.length > maxLength) {
+            alert(input.name + ' 의 최대 길이는 ' + maxLength + '자입니다.');
+            input.value = input.value.substring(0, maxLength);
+            return false;
+        }
+        return true;
+    }
+
+   
+    
+    
+</script>
+</head>
+<body>
+	<h1>글쓰기</h1>
+
+	<form action="save.do" method="post" enctype="multipart/form-data" onsubmit="return trimEndOnSubmit(this);" accept-charset="UTF-8">
+		<table align="center" width="500">
+			<tr>
+				<td>제목:</td>
+				<td><input type="text" name="title"
+					oninput="removeWhiteSpaces(this)" onpaste="handlePasteEvent(this)" /></td>
+			</tr>
+			<tr>
+				<td>이름:</td>
+				<td><input type="text" name="name"
+					oninput="removeWhiteSpaces(this)" onpaste="handlePasteEvent(this)" /></td>
+			</tr>
+			<tr>
+				<td>비밀번호:</td>
+				<td><input type="password" name="pass" /></td>
+			</tr>
+			<tr>
+				<td>내용:</td>
+				<td><textarea name="content" rows="5" cols="50"
+						oninput="removeWhiteSpaces(this)" onpaste="handlePasteEvent(this)"></textarea></td>
+			</tr>
+			<tr>
+				<td>파일 첨부:</td>
+				<td><input type="file" name="file"></td>
+			</tr>
+			<tr>
+				<td colspan="2" align="center"><input type="submit" value="등록" />
+					<input type="button" onclick="location.href='list.do'" value="취소" />
+					<input type="hidden" name="parent_id" value="${parentBoard.seq}">
+				</td>
+			</tr>
+		</table>
+	</form>
+</body>
+</html>

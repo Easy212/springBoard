@@ -1,0 +1,222 @@
+<?xml version="1.0" encoding="UTF-8" ?>  
+<!DOCTYPE mapper   
+    PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"   
+    "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="BoardDao">
+	<!-- 게시물 리스트 조회 (검색 기능 추가) -->
+	<select id="boardList" parameterType="map" resultType="BoardVO">
+    SELECT SEQ, NAME, TITLE, CONTENT, PASS, HIT, REGDATE, FILE_NAME, ORIGINAL_FILENAME AS originalFilename, GROUP_ID, ORDER_NO, DEPTH FROM (
+        SELECT A.*, ROWNUM RNUM FROM (
+            SELECT * FROM BOARD
+            <where>
+                1 = 1
+                <if test="keyField == 'title'">
+                    AND TITLE LIKE '%' || #{keyWord, jdbcType=VARCHAR} || '%'
+                </if>
+                <if test="keyField == 'name'">
+                    AND NAME LIKE '%' || #{keyWord, jdbcType=VARCHAR} || '%'
+                </if>
+                <if test="keyField == 'content'">
+                    AND CONTENT LIKE '%' || #{keyWord, jdbcType=VARCHAR} || '%'
+                </if>
+                <if test="keyField == 'all' or keyField == ''">
+					AND (TITLE LIKE '%' || #{keyWord, jdbcType=VARCHAR} || '%'
+					OR NAME LIKE '%' || #{keyWord, jdbcType=VARCHAR} || '%'
+					OR CONTENT LIKE '%' || #{keyWord, jdbcType=VARCHAR} || '%'
+					OR originalFilename LIKE '%' || #{keyWord, jdbcType=VARCHAR} || '%') 
+				</if>
+            </where>
+            ORDER BY GROUP_ID DESC, ORDER_NO ASC
+        ) A
+        <![CDATA[ 
+            ) WHERE RNUM >= #{start} AND RNUM <= #{end}
+        ]]>
+    </select>
+
+	<!-- 게시물 갯수 조회를 위한 쿼리(검색 기능 추가) -->
+	<select id="boardCount" parameterType="map" resultType="Integer">
+
+		SELECT COUNT(*) FROM BOARD
+		<where>
+			<if test="keyField == 'title'">
+				TITLE LIKE '%' || #{keyWord} || '%'
+			</if>
+			<if test="keyField == 'name'">
+				NAME LIKE '%' || #{keyWord} || '%'
+			</if>
+			<if test="keyField == 'content'">
+				CONTENT LIKE '%' || #{keyWord} || '%'
+			</if>
+			<if test="keyField == 'all' or keyField == ''">
+				(TITLE LIKE '%' || #{keyWord} || '%' OR NAME LIKE '%' ||
+				#{keyWord} || '%'
+				OR CONTENT LIKE '%' || #{keyWord} || '%')
+			</if>
+		</where>
+
+	</select>
+
+	<!-- 조회수증가 -->
+	<update id="updateHit" parameterType="int">
+		UPDATE BOARD SET HIT = HIT
+		+ 1 WHERE SEQ = #{seq}
+	</update>
+
+	<!-- 게시물 등록 -->
+	<insert id="insertBoard" parameterType="BoardVO">
+		INSERT INTO BOARD (
+		SEQ,
+		NAME, TITLE, CONTENT, PASS, HIT, REGDATE, FILE_NAME,
+		ORIGINAL_FILENAME,
+		GROUP_ID, DEPTH,
+		ORDER_NO
+		)
+		VALUES (
+		BOARD_SEQ.NEXTVAL,
+		#{name, jdbcType=VARCHAR},
+		#{title, jdbcType=VARCHAR},
+		#{content,
+		jdbcType=VARCHAR}, #{pass,
+		jdbcType=VARCHAR},
+		0, SYSDATE,
+		#{uploadedFile, jdbcType=VARCHAR}, #{originalFilename,
+		jdbcType=VARCHAR},
+		#{group_id, jdbcType=NUMERIC}, #{depth,
+		jdbcType=NUMERIC}, #{order_no,
+		jdbcType=NUMERIC}
+		)
+	</insert>
+
+	<!-- 특정 게시물 조회 -->
+	<select id="getBoard" parameterType="Integer" resultType="BoardVO">
+		SELECT
+		SEQ, NAME, TITLE, CONTENT, PASS, HIT, REGDATE, FILE_NAME AS
+		uploadedFile, ORIGINAL_FILENAME AS originalFilename,
+		group_id,
+		order_no, depth
+		FROM BOARD
+		WHERE SEQ = #{seq}
+	</select>
+
+	<!-- 비밀번호 확인 -->
+	<select id="checkPassword" resultType="int">
+		SELECT COUNT(*) FROM BOARD
+		WHERE SEQ = #{seq} AND PASS = #{pass}
+	</select>
+
+	<!-- 게시물 수정 -->
+	<update id="updateBoard" parameterType="BoardVO">
+		UPDATE BOARD SET
+		NAME=#{name}, TITLE=#{title}, CONTENT=#{content},
+		FILE_NAME=#{uploadedFile, jdbcType=VARCHAR},
+		ORIGINAL_FILENAME=#{originalFilename,
+		jdbcType=VARCHAR} WHERE
+		SEQ=#{seq}
+	</update>
+
+	<!-- 파일명 컬럼 값을 NULL 값으로 업데이트 -->
+	<update id="updateFileName" parameterType="int">
+		UPDATE BOARD SET
+		FILE_NAME = NULL WHERE SEQ = #{seq}
+	</update>
+
+	<!-- 게시물 삭제 -->
+	<delete id="deleteBoard" parameterType="int">
+		DELETE FROM BOARD WHERE
+		SEQ = #{seq}
+	</delete>
+
+	<!-- 답글 등록 -->
+	<insert id="insertReply" parameterType="BoardVO">
+		INSERT INTO BOARD (
+		SEQ,
+		NAME, TITLE, CONTENT, PASS, HIT, REGDATE, FILE_NAME,
+		ORIGINAL_FILENAME,
+		GROUP_ID, DEPTH,
+		ORDER_NO
+		)
+		VALUES (
+		BOARD_SEQ.NEXTVAL,
+		#{name, jdbcType=VARCHAR},
+		#{title, jdbcType=VARCHAR}, #{content,
+		jdbcType=VARCHAR},
+		#{pass, jdbcType=VARCHAR}, 0, SYSDATE,
+		#{uploadedFile, jdbcType=VARCHAR},
+		#{originalFilename,
+		jdbcType=VARCHAR},
+		#{group_id, jdbcType=NUMERIC}, #{depth,
+		jdbcType=NUMERIC}, #{order_no,
+		jdbcType=NUMERIC}
+		)
+	</insert>
+	
+	<!-- 답글 등록 시, 해당 그룹 번호와 depth, order_no를 기준으로 현재 order_no 보다 큰 답글들의 order_no를 모두 1씩 증가 -->
+	<update id="updateOrderNoForReply" parameterType="BoardVO">
+	<![CDATA[ 
+	    UPDATE board
+	    SET order_no = order_no + 1
+	    WHERE group_id = #{group_id}
+	    AND order_no > #{order_no}
+	    AND depth >= #{depth}
+    ]]>
+	</update>
+	
+	<!-- 답글 등록 시, 해당 seq의 group_id, order_no, depth를 업데이트  -->
+	<update id="updateBoardGroupId" parameterType="BoardVO">
+		UPDATE board
+		SET
+		group_id = #{group_id},
+		order_no = #{order_no},
+		depth = #{depth}
+		WHERE
+		seq = #{seq}
+	</update>
+	
+	<!-- 해당 seq의 order_no를 새로운 order_no로 업데이 -->
+	<update id="updateOrderNo" parameterType="BoardVO">
+		UPDATE board
+		SET
+		order_no = #{order_no}
+		WHERE seq = #{seq}
+	</update>
+	
+	<!-- 시퀀스에서 다음 시퀀스 번호를 가져옴 -->
+	<select id="getGeneratedGroupSeq" resultType="int">
+		SELECT
+		BOARD_SEQ.nextval
+		FROM dual
+	</select>
+	
+	<!-- 해당 그룹 번호, depth, order_no 보다 큰 게시물 중 가장 작은 order_no와 해당 게시물의 정보를 가져옴 -->
+	<select id="getNextBoard" parameterType="map" resultType="BoardVO">
+    <![CDATA[ 
+    SELECT *
+    FROM (
+        SELECT b.*, ROWNUM AS rn
+        FROM (
+            SELECT *
+            FROM board
+            WHERE group_id = #{group_id} AND depth = #{depth} AND order_no > #{order_no} 
+            ORDER BY order_no ASC, SEQ DESC
+        ) b
+    )
+    WHERE ROWNUM <=1
+     ]]>
+	</select>
+
+	<!-- 해당 그룹 번호와 order_no 보다 큰 게시물들의 정보를 가져옴 -->
+	<select id="getBoardsGreaterThanOrderNo" parameterType="map"
+		resultType="BoardVO">
+		SELECT seq, name, title, content, pass, hit, regdate,
+		file_name,
+		group_id, order_no, depth
+		FROM board
+		WHERE group_id =
+		#{group_id} AND order_no >= #{order_no}
+		ORDER BY order_no ASC
+	</select>
+	
+ 	
+
+</mapper>

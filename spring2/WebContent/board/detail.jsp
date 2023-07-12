@@ -1,0 +1,159 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+	pageEncoding="UTF-8"%>
+<%@ taglib prefix="c" uri="http://java.sun.com/jsp/jstl/core"%>
+<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt"%>
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<style>
+	th, td { width: 500px;}
+</style>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>상세보기</title>
+<script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+</head>
+<body>
+	<h1>상세보기</h1>
+	<table align="center" width="500">
+		<tr width="500">
+			<td>제목: </td>
+			<td><input type="text" readonly="readonly"	value="${board.title}"></td>	
+		</tr>
+		<tr width="500">
+			<td>이름: </td>
+			<td><input type="text" readonly="readonly"	value="${board.name}"></td>
+		</tr>
+		<tr>
+			<td>내용: </td>
+			<td> <textarea rows="5" cols="50" readonly="readonly">${board.content}</textarea> </td>
+			
+		</tr>
+		<tr>
+    <td>첨부파일:</td>
+    <td><c:choose>
+        <c:when test="${not empty board.uploadedFile}">
+           <a href="#" id="downloadFile">${board.originalFilename}</a>
+        </c:when>
+        <c:otherwise>
+            	<span> 파일이 없습니다.</span>
+        </c:otherwise>
+    </c:choose></td>
+</tr>
+
+		<tr align="center">
+			<td colspan="2" align="center">
+				<button onclick="updateBoard()">수정</button>
+				<button onclick="deleteBoard()">삭제</button>
+				<button onclick="location.href='list.do'">목록</button>
+			</td>
+		</tr>
+
+		<tr>
+			<td colspan="2">
+				<button onclick="writeReply()">답글쓰기</button>
+			</td>
+		</tr>
+
+	</table>
+</body>
+<script>
+	$("#downloadFile").on("click", function (event) {
+	  event.preventDefault();
+
+	  var form = $("<form>");
+	  form.attr("method", "POST");
+	  form.attr("action", "download.do");
+
+	  var fileNameInput = $("<input>");
+	  fileNameInput.attr("type", "hidden");
+	  fileNameInput.attr("name", "fileName");
+	  fileNameInput.attr("value", "${board.uploadedFile}");
+
+	  var originalFilenameInput = $("<input>");
+	  originalFilenameInput.attr("type", "hidden");
+	  originalFilenameInput.attr("name", "originalFilename");
+	  originalFilenameInput.attr("value", "${board.originalFilename}");
+
+	  form.append(fileNameInput);
+	  form.append(originalFilenameInput);
+	  $("body").append(form);
+
+	  form.submit();
+	});
+
+
+	function updateBoard() {
+	    const form = document.createElement('form');
+	    form.method = 'POST';
+	    form.action = 'updateForm.do';
+	    const input = document.createElement('input');
+	    input.type = 'hidden';
+	    input.name = 'seq';
+	    input.value = '${board.seq}';
+	    form.appendChild(input);
+	    document.body.appendChild(form);
+	    form.submit();
+	}
+	
+	function writeReply() {
+	    const form = document.createElement('form');
+	    form.method = 'POST';
+	    form.action = 'writeReply.do';
+	    const input = document.createElement('input');
+	    input.type = 'hidden';
+	    input.name = 'seq';
+	    input.value = '${board.seq}';
+	    form.appendChild(input);
+	    document.body.appendChild(form);
+	    form.submit();
+	}
+
+  	function deleteBoard() {
+	    var password = prompt("비밀번호를 입력해주세요.");
+	    if (password) {
+	        $.ajax({
+	            url: "${pageContext.request.contextPath}/checkPassword.do",
+	            type: "POST",
+	            data: {
+	                seq: ${board.seq},
+	                pass: password
+	            },
+	            contentType: "application/x-www-form-urlencoded; charset=utf-8",
+	            success: function (response) {
+	                if (response === "success") {
+	                    if (confirm("정말 삭제하시겠습니까?")) {
+	                        $.ajax({
+	                            url: "${pageContext.request.contextPath}/board/delete.do",
+	                            type: "POST",
+	                            data: {
+	                                seq: ${board.seq},
+	                            },
+	                            contentType: "application/x-www-form-urlencoded; charset=utf-8",
+	                            success: function (response) {
+	                                if (response === "success") {
+	                                    alert("게시물이 성공적으로 삭제되었습니다.");
+	                                    location.href = "list.do";
+	                                } else {
+	                                    alert("게시물 삭제에 실패했습니다.");
+	                                }
+	                            },
+	                            error: function (err) {
+	                                console.log(err);
+	                            }
+	                        });
+	                    }
+	                } else {
+	                    alert("비밀번호가 일치하지 않습니다.");
+	                }
+	            },
+	            error: function (err) {
+	                console.log(err);
+	            }
+	        });
+	    }
+	}
+  
+	</script>
+</script>
+</html>

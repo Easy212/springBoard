@@ -1,0 +1,20 @@
+package com.board.dao;
+
+import com.board.VO.BoardVO;
+
+import java.util.List;
+import java.util.Map;
+
+public abstract interface BoardDao { //인터페이스 추상메소드
+	
+	public abstract List<BoardVO> list(Map<String, Object> paramMap);
+
+	public abstract int getCount(Map<String, Object> paramMap);
+	
+	 public abstract BoardVO getBoard(int seq);
+	 public abstract void updateHit(int seq);
+
+	void insertBoard(BoardVO board);
+	
+}
+

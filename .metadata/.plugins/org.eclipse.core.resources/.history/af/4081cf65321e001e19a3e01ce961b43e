@@ -1,0 +1,68 @@
+package com.board.controller;
+
+import com.board.VO.BoardVO;
+import com.board.dao.BoardDao;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+
+
+
+
+import java.util.HashMap;
+import java.util.Map;
+
+import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.ModelAndView;
+
+@Controller
+public class WriteReplyController {
+
+    @Autowired
+    private BoardDao boardDao;
+    
+    @RequestMapping(value = "/board/writeReply.do", method = RequestMethod.GET)
+    public ModelAndView process(@RequestParam("seq") int seq) {
+        BoardVO board = boardDao.getBoard(seq);
+
+        ModelAndView mav = new ModelAndView();
+        mav.setViewName("writeReply");
+        mav.addObject("parentBoard", board);
+        mav.addObject("group_id", board.getGroup_id()); 
+
+        return mav;
+    }
+
+    @RequestMapping(value = "/board/saveReply.do", method = RequestMethod.POST)
+    public ModelAndView saveReply(@ModelAttribute("boardVO") BoardVO boardVO) {
+        int parent_id = boardVO.getParent_id();
+        BoardVO parentBoard = boardDao.getBoard(parent_id);
+        
+        // 같은 그룹 내에서 부모 게시물 이후에 작성된 게시물들의 order_no를 1씩 증가시킴
+        Map<String, Object> map = new HashMap<>();
+        map.put("group_id", parentBoard.getGroup_id());
+        map.put("order_no", parentBoard.getOrder_no());
+        boardDao.updateOrderNoForReply(map);
+        
+        int order_no = parentBoard.getOrder_no() + 1;
+        int depth = parentBoard.getDepth() + 1;
+        boardVO.setOrder_no(order_no);
+        boardVO.setDepth(depth);
+
+        boardDao.insertReply(boardVO);
+        boardDao.updateBoardGroupId(boardVO);
+        
+        ModelAndView mav = new ModelAndView("redirect:/board/list.do");
+        return mav;
+    }
+}

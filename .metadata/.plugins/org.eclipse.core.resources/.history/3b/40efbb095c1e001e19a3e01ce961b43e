@@ -1,0 +1,72 @@
+package com.board.controller;
+
+import com.board.VO.BoardVO;
+import com.board.dao.BoardDao;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.ModelAndView;
+
+@Controller
+public class WriteReplyController {
+
+	@Autowired
+	private BoardDao boardDao;
+
+	@RequestMapping(value = "/board/writeReply.do", method = RequestMethod.GET)
+	public ModelAndView process(@RequestParam("seq") int seq) {
+		BoardVO board = boardDao.getBoard(seq);
+		int groupId = board.getGroup_id();
+		int depth = board.getDepth();
+		int orderNo = board.getOrder_no(); 
+
+		BoardVO nextBoard = boardDao.getNextBoard(groupId, depth + 1);
+		if (nextBoard != null) {
+			board.setParent_id(nextBoard.getSeq());
+		} else {
+			board.setParent_id(0);
+		}
+
+		ModelAndView mav = new ModelAndView();
+		mav.setViewName("writeReply");
+		mav.addObject("parentBoard", board);
+
+		return mav;
+	}
+	@RequestMapping(value = "/board/saveReply.do", method = RequestMethod.POST)
+	public ModelAndView saveReply(@ModelAttribute("boardVO") BoardVO boardVO) {
+
+	    int parentId = boardVO.getParent_id();
+	    BoardVO parentBoard = boardDao.getBoard(parentId);
+
+	    // 수정: 새로운 order_no, depth, group_id를 설정
+	    boardVO.setOrder_no(parentBoard.getOrder_no() + 1);
+	    boardVO.setDepth(parentBoard.getDepth() + 1);
+	    boardVO.setGroup_id(parentBoard.getGroup_id());
+
+	    try {
+	        // 부모 게시물의 현재 order_no 이후의 order_no를 증가
+	        boardDao.updateOrderNoForReply(boardVO);
+	    } catch (Exception e) {
+	        e.printStackTrace();
+	    }
+
+	    // 답글 저장
+	    boardVO.setTitle("[답글] " + boardVO.getTitle());
+	    boardDao.insertReply(boardVO);
+
+	    ModelAndView mav = new ModelAndView("redirect:/board/list.do");
+	    return mav;
+	}
+}

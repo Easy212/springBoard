@@ -1,0 +1,121 @@
+<%@ page language="java" contentType="text/html; charset=UTF-8"
+	pageEncoding="UTF-8"%>
+<%@ taglib prefix="fmt" uri="http://java.sun.com/jsp/jstl/fmt"%>
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN" "http://www.w3.org/TR/html4/loose.dtd">
+<html>
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>답글 작성</title>
+<script>
+    // 첫부분 공백 제거
+    function removeWhiteSpaces(input) {
+        const validValue = input.value.replace(/^\s+/, '');
+        if (input.value !== validValue) {
+          input.value = validValue;
+        }
+    }
+
+    // 복붙했을경우 시작과 끝공백 제거
+    function handlePasteEvent(event) {
+        // 텍스트를 가져오는 방법은 브라우저에 따라 다르다
+        let pastedText = event.clipboardData
+          ? event.clipboardData.getData('text')
+          : window.clipboardData.getData('Text');
+
+        // 시작과 끝에 있는 공백 제거
+        pastedText = pastedText.trim();
+
+        // 강제로 input의 value를 승인된 텍스트로 변경한다
+        setTimeout(() => {
+          event.target.value = pastedText;
+        }, 0);
+      }
+    //저장될 때 끝 부분의 공백을 제거
+    function trimEndOnSubmit(form) {
+        form.title.value = form.title.value.replace(/\s+$/, '');
+        form.name.value = form.name.value.replace(/\s+$/, '');
+        form.content.value = form.content.value.replace(/\s+$/, '');
+        return true;
+    }
+
+    function validateMaxLengthAndSubmit(form) {
+        trimEndOnSubmit(form);
+
+        const fields = ["title", "name", "content", "pass"];
+        const fieldLabels = ["제목", "이름", "내용", "비밀번호"];
+        const maxLimits = [100, 50, 500, 10];
+
+        for (let i = 0; i < fields.length; i++) {
+            const input = form[fields[i]];
+            const fieldLabel = fieldLabels[i];
+
+            // 입력값이 없거나 공백만 있는 경우 경고창을 띄운다.
+            input.value = input.value.trim(); 
+
+            if (!input.value) {
+                alert(fieldLabel + "을(를) 입력해주세요.");
+                input.focus();
+                return false;
+            }
+
+            if (!validateInputMaxLength(input, maxLimits[i])) {
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+    // 입력값의 최대 길이를 검사하고 경고창을 출력한다.
+    function validateInputMaxLength(input, maxLength) {
+        const inputValue = input.value;
+        const fieldLabel = input.getAttribute('data-label');
+        if (inputValue.length > maxLength) {
+            alert(fieldLabel + "의 길이가 초과되었습니다. 최대 " + maxLength + "자를 입력해주세요.");
+            input.focus();
+            return false;
+        }
+        return true;
+    }
+</script>
+</head>
+<body>
+	<h1>답글쓰기</h1>
+    <form action="saveReply.do" method="post" onsubmit="return validateMaxLengthAndSubmit(this);" enctype="multipart/form-data">
+        <table align="center" width="500">
+            <tr>
+                <td>제목</td>
+                <td><input type="text" name="title" data-label="제목" oninput="removeWhiteSpaces(this)" onpaste="handlePasteEvent(this)"/></td>
+            </tr>
+            <tr>
+                <td>이름</td>
+                <td><input type="text" name="name" data-label="이름" oninput="removeWhiteSpaces(this)" onpaste="handlePasteEvent(this)"/></td>
+            </tr>
+
+            <tr>
+                <td>내용</td>
+                <td><textarea name="content" data-label="내용" oninput="removeWhiteSpaces(this)" onpaste="handlePasteEvent(this)" rows="5" cols="50"></textarea></td>
+            </tr>
+            <tr>
+                <td>비밀번호</td>
+                <td><input type="password" name="pass" data-label="비밀번호" oninput="removeWhiteSpaces(this)" onpaste="handlePasteEvent(this)"/></td>
+            </tr>
+            
+            <tr>
+                <td>파일 첨부:</td>
+                <td><input type="file" name="file"></td>
+            </tr>
+            <tr>
+                <td colspan="2">
+                    <input type="hidden" name="group_id" value="${parentBoard.group_id}" />
+                    <input type="hidden" name="depth" value="${parentBoard.depth + 1}" />
+                    <input type="hidden" name="order_no" value="${parentBoard.order_no + 1}" />
+                    <input type="hidden" name="parent_id" value="${parentBoard.seq}" />
+                    <input type="submit" value="등록" />
+                    <input type="button" onclick="window.history.back();" value="취소" />
+					<input type="button" onclick="location.href='list.do'" value="목록으로" />
+               </td>
+        </table>
+    </form>
+</body>
+</html>

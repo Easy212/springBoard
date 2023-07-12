@@ -1,0 +1,65 @@
+package com.board.controller;
+
+import com.board.VO.BoardVO;
+import com.board.dao.BoardDao;
+
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+
+
+
+
+import org.apache.log4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
+import org.springframework.web.bind.annotation.ModelAttribute;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.servlet.ModelAndView;
+
+@Controller
+public class WriteReplyController {
+
+    @Autowired
+    private BoardDao boardDao;
+    
+    @RequestMapping(value = "/board/writeReply.do", method = RequestMethod.GET)
+    public ModelAndView process(@RequestParam("seq") int seq) {
+        BoardVO board = boardDao.getBoard(seq);
+
+        ModelAndView mav = new ModelAndView();
+        mav.setViewName("writeReply");
+        mav.addObject("parentBoard", board);
+        mav.addObject("group_id", board.getGroup_id()); 
+
+        return mav;
+    }
+
+    @RequestMapping(value = "/board/saveReply.do", method = RequestMethod.POST)
+    public ModelAndView saveReply(@ModelAttribute("boardVO") BoardVO boardVO) {
+        // boardVO에서 가져온 값을 추출합니다.
+        int groupId = boardVO.getGroup_id();
+        int parentId = boardVO.getParent_id(); 
+        int orderNo = boardVO.getOrder_no();
+        int depth = boardVO.getDepth();
+        boardVO.setTitle("[답글] " + boardVO.getTitle());
+        
+        boardVO.setGroup_id(groupId);
+        boardVO.setOrder_no(orderNo + 1);
+        boardVO.setDepth(depth + 1);
+        
+        // 부모 게시물의 현재 order_no 이후의 order_no를 증가시킵니다.
+        boardDao.updateOrderNo(groupId, orderNo);
+
+        // 답글 저장
+        boardDao.insertReply(boardVO);
+        
+        ModelAndView mav = new ModelAndView("redirect:/board/list.do");
+        return mav;
+    }
+}

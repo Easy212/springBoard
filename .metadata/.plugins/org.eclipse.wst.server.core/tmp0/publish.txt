@@ -1,0 +1,4 @@
+#Tomcat publish data
+#Wed Jul 12 11:14:26 KST 2023
+org.eclipse.jst.jee.server\:/binary\:C\:\\workspace\\spring\\WebContent\\WEB-INF\\lib\\spring-web-3.2.3.RELEASE.jar=WEB-INF/lib/spring-web-3.2.3.RELEASE.jar
+org.eclipse.jst.jee.server\:/binary\:C\:\\workspace\\spring2\\WebContent\\WEB-INF\\lib\\spring-web-3.2.3.RELEASE.jar=WEB-INF/lib/spring-web-3.2.3.RELEASE.jar
